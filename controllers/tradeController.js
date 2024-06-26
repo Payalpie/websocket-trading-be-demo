@@ -1,14 +1,15 @@
 const axios = require('axios');
-const wss = require('../config/websocket'); // Assuming websocket module exports the wss object
+const { getWebSocketServer, WebSocket } = require('../config/websocket');
 
 // Helper function to send messages to all connected clients
-function broadcastMessage(message) {
-  wss.clients.forEach(client => {
+const broadcastMessage = (message) => {
+  const wss = getWebSocketServer(); // Ensures you get the initialized WebSocket server
+  wss.clients.forEach((client) => {
     if (client.readyState === WebSocket.OPEN) {
       client.send(message);
     }
   });
-}
+};
 
 // Fetch data from a specified URL with parameters
 async function fetchData(url, params = {}) {
@@ -22,18 +23,19 @@ exports.handleTrade = async (req, res) => {
     broadcastMessage('Backend Connection established');
 
     // Fetch master trade details
-    broadcastMessage('Fetching Master Trade... (Pinging Lambda Function)');
+    broadcastMessage('Fetching trade.. (Pinging Lambda Function)');
     const masterTradeUrl = 'https://pdzsl5xw2kwfmvauo5g77wok3q0yffpl.lambda-url.us-east-2.on.aws/';
     const masterTrade = await fetchData(masterTradeUrl);
 
     // Notify clients about trade replication
-    broadcastMessage('Duplicating Master Trade');
+    broadcastMessage('Duplicating trade');
     const connectParams = {
       user: '44712225',
       password: 'tfkp48',
       host: '18.209.126.198',
       port: 443
     };
+
     const connectionData = await fetchData('https://mt4.mtapi.io/Connect', connectParams);
     const connectionId = connectionData.id;
 
@@ -45,6 +47,7 @@ exports.handleTrade = async (req, res) => {
       takeprofit: masterTrade.takeprofit,
       comment: masterTrade.comment
     };
+
     const slaveTrade = await fetchData('https://mt4.mtapi.io/OrderSend', tradeParams);
 
     // Notify clients about successful replication and show trade details
@@ -53,7 +56,7 @@ exports.handleTrade = async (req, res) => {
 
     res.json(slaveTrade);
   } catch (error) {
-    console.error('Error processing trade:', error);
+    console.error('Error processing trade:', error.message);
     broadcastMessage('Error processing trade');
     res.status(500).json({ error: 'Internal Server Error' });
   }
