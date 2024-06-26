@@ -1,17 +1,23 @@
-module.exports = (wss) => {
+const WebSocket = require('ws');  // Ensure this is at the top of the file
+
+let wss = null;
+
+const initWebSocketServer = (server) => {
+  wss = new WebSocket.Server({ server });
   wss.on('connection', (ws) => {
-    console.log('connection successfully established');
+    console.log('Connection successfully established');
     ws.on('close', () => {
-      console.log('connection removed');
+      console.log('Connection removed');
     });
   });
-
-  // Utility to send messages to all clients
-  wss.broadcast = (message) => {
-    wss.clients.forEach((client) => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(message);
-      }
-    });
-  };
+  return wss;
 };
+
+const getWebSocketServer = () => {
+  if (!wss) {
+    throw new Error("WebSocket server has not been initialized yet.");
+  }
+  return wss;
+};
+
+module.exports = { initWebSocketServer, getWebSocketServer, WebSocket };  // Export WebSocket for use elsewhere if needed
